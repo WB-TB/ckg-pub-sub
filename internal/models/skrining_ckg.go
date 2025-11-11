@@ -9,11 +9,12 @@ type SkriningCKGRaw struct {
 	PasienJenisKelamin string  `bson:"jenis_kelamin"`
 	PasienTglLahir     string  `bson:"tgl_lahir"`
 	PasienUsia         int     `bson:"usia"`
-	PasienPekerjaan    string  `bson:"pekerjaan"` //TODO: saat ini data belum tersedia di dwh mongodb
+	PasienPekerjaan    *string `bson:"pekerjaan"` //TODO: saat ini data belum tersedia di dwh mongodb
 	PasienProvinsi     *string `bson:"provinsi_pasien"`
 	PasienKabkota      *string `bson:"kabkota_pasien"`
 	PasienKecamatan    *string `bson:"kecamatan_pasien"`
 	PasienKelurahan    *string `bson:"kelurahan_pasien"`
+	PasienAlamat       *string `bson:"alamat"`
 	PasienNoHandphone  string  `bson:"no_handphone"`
 
 	// Data Kunjungan
@@ -36,7 +37,6 @@ type SkriningCKGRaw struct {
 	HasilGdp                  *float64 `bson:"hasil_gdp"`
 	HasilGdpp                 *float64 `bson:"hasil_gdpp"`
 	PemeriksaanChestXray      *string  `bson:"pemeriksaan_chest_xray"`
-	MetodePemeriksaanTb       *string  `bson:"metode_pemeriksaan_tb"`
 	HasilPemeriksaanTbBta     *string  `bson:"hasil_pemeriksaan_tb_bta"`
 	HasilPemeriksaanTbTcm     *string  `bson:"hasil_pemeriksaan_tb_tcm"`
 	HasilPemeriksaanDm        *string  `bson:"hasil_pemeriksaan_dm"`
@@ -67,7 +67,7 @@ type SkriningCKGResult struct {
 	PasienJenisKelamin       string  `json:"pasien_jenis_kelamin"`
 	PasienTglLahir           string  `json:"pasien_tgl_lahir"`
 	PasienUsia               int     `json:"pasien_usia"`
-	PasienPekerjaan          string  `bson:"pekerjaan"` //TODO: saat ini data belum tersedia di dwh mongodb
+	PasienPekerjaan          *string `bson:"pasien_pekerjaan"` //TODO: saat ini data belum tersedia di dwh mongodb
 	PasienProvinsiSatusehat  *string `json:"pasien_provinsi_satusehat"`
 	PasienKabkotaSatusehat   *string `json:"pasien_kabkota_satusehat"`
 	PasienKecamatanSatusehat *string `json:"pasien_kecamatan_satusehat"`
@@ -76,6 +76,7 @@ type SkriningCKGResult struct {
 	PasienKabkotaSitb        *string `json:"pasien_kabkota_sitb"`
 	PasienKecamatanSitb      *string `json:"pasien_kecamatan_sitb"`
 	PasienKelurahanSitb      *string `json:"pasien_kelurahan_sitb"`
+	PasienAlamat             *string `json:"pasien_alamat"`
 	PasienNoHandphone        string  `json:"pasien_no_handphone"`
 
 	// Data Kunjungan
@@ -113,7 +114,6 @@ type SkriningCKGResult struct {
 	TerdugaTb                  *string `json:"terduga_tb"`
 
 	// Pemeriksaan Lab TB
-	MetodePemeriksaanTb       *string `json:"pemeriksaan_tb_metode"`
 	HasilPemeriksaanTbBta     *string `json:"pemeriksaan_tb_bta"`
 	HasilPemeriksaanTbTcm     *string `json:"pemeriksaan_tb_tcm"`
 	HasilPemeriksaanPoct      *string `json:"pemeriksaan_tb_poct"`
@@ -149,6 +149,9 @@ func (s *SkriningCKGResult) FromMap(data map[string]interface{}) {
 	if val, ok := data["pasien_usia"].(float64); ok {
 		s.PasienUsia = int(val)
 	}
+	if val, ok := data["pasien_pekerjaan"].(string); ok {
+		s.PasienPekerjaan = &val
+	}
 	if val, ok := data["pasien_provinsi_satusehat"].(string); ok {
 		s.PasienProvinsiSatusehat = &val
 	}
@@ -172,6 +175,9 @@ func (s *SkriningCKGResult) FromMap(data map[string]interface{}) {
 	}
 	if val, ok := data["pasien_kelurahan_sitb"].(string); ok {
 		s.PasienKelurahanSitb = &val
+	}
+	if val, ok := data["pasien_alamat"].(string); ok {
+		s.PasienAlamat = &val
 	}
 	if val, ok := data["pasien_no_handphone"].(string); ok {
 		s.PasienNoHandphone = val
@@ -254,9 +260,6 @@ func (s *SkriningCKGResult) FromMap(data map[string]interface{}) {
 	if val, ok := data["terduga_tb"].(string); ok {
 		s.TerdugaTb = &val
 	}
-	if val, ok := data["pemeriksaan_tb_metode"].(string); ok {
-		s.MetodePemeriksaanTb = &val
-	}
 	if val, ok := data["pemeriksaan_tb_bta"].(string); ok {
 		s.HasilPemeriksaanTbBta = &val
 	}
@@ -288,6 +291,7 @@ func (s *SkriningCKGResult) ToMap() map[string]interface{} {
 		"pasien_kabkota_sitb":            s.PasienKabkotaSitb,
 		"pasien_kecamatan_sitb":          s.PasienKecamatanSitb,
 		"pasien_kelurahan_sitb":          s.PasienKelurahanSitb,
+		"pasien_alamat":                  s.PasienAlamat,
 		"pasien_no_handphone":            s.PasienNoHandphone,
 		"periksa_faskes_satusehat":       s.KodeFaskesSatusehat,
 		"periksa_faskes_sitb":            s.KodeFaskesSITB,
@@ -315,7 +319,6 @@ func (s *SkriningCKGResult) ToMap() map[string]interface{} {
 		"kontak_pasien_tbc":              s.KontakPasienTbc,
 		"hasil_skrining_tbc":             s.HasilSkriningTbc,
 		"terduga_tb":                     s.TerdugaTb,
-		"pemeriksaan_tb_metode":          s.MetodePemeriksaanTb,
 		"pemeriksaan_tb_bta":             s.HasilPemeriksaanTbBta,
 		"pemeriksaan_tb_tcm":             s.HasilPemeriksaanTbTcm,
 		"pemeriksaan_tb_poct":            s.HasilPemeriksaanPoct,

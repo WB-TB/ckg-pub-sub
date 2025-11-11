@@ -95,13 +95,16 @@ type DatabaseConfig struct {
 }
 
 type CKGConfig struct {
-	TableSkrining string `mapstructure:"tableskrining"`
-	TableStatus   string `mapstructure:"tablestatus"`
-	TableIncoming string `mapstructure:"tableincoming"`
-	TableOutgoing string `mapstructure:"tableoutgoing"`
-	MarkerField   string `mapstructure:"markerfield"`
-	MarkerConsume string `mapstructure:"markerconsume"`
-	MarkerProduce string `mapstructure:"markerproduce"`
+	UseCache           bool   `mapstructure:"usecache"`
+	TableMasterWilayah string `mapstructure:"tablemasterwilayah"`
+	TableMasterFaskes  string `mapstructure:"tablemasterfaskes"`
+	TableSkrining      string `mapstructure:"tableskrining"`
+	TableStatus        string `mapstructure:"tablestatus"`
+	TableIncoming      string `mapstructure:"tableincoming"`
+	TableOutgoing      string `mapstructure:"tableoutgoing"`
+	MarkerField        string `mapstructure:"markerfield"`
+	MarkerConsume      string `mapstructure:"markerconsume"`
+	MarkerProduce      string `mapstructure:"markerproduce"`
 }
 
 func GetConfig() *Configurations {

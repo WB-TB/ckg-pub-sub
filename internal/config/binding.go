@@ -49,12 +49,15 @@ func setEnvBindings() map[string]string {
 		"db.attributes": "DB_ATTRIBUTES",
 
 		// CKG
-		"ckg.tableskrining": "CKG_TABLESKRINING",
-		"ckg.tablestatus":   "CKG_TABLESTATUS",
-		"ckg.tableincoming": "CKG_TABLEINCOMING",
-		"ckg.tableoutgoing": "CKG_TABLEOUTGOING",
-		"ckg.markerfield":   "CKG_MARKERFIELD",
-		"ckg.markerconsume": "CKG_MARKERCONSUME",
-		"ckg.markerproduce": "CKG_MARKERPRODUCE",
+		"ckg.usecache":           "CKG_USECACHE",
+		"ckg.tablemasterwilayah": "CKG_TABLE_MASTER_WILAYAH",
+		"ckg.tablemasterfaskes":  "CKG_TABLE_MASTER_FASKES",
+		"ckg.tableskrining":      "CKG_TABLE_SKRINING",
+		"ckg.tablestatus":        "CKG_TABLE_STATUS",
+		"ckg.tableincoming":      "CKG_TABLE_INCOMING",
+		"ckg.tableoutgoing":      "CKG_TABLE_OUTGOING",
+		"ckg.markerfield":        "CKG_MARKER_FIELD",
+		"ckg.markerconsume":      "CKG_MARKER_CONSUME",
+		"ckg.markerproduce":      "CKG_MARKER_PRODUCE",
 	}
 }

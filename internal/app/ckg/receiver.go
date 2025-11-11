@@ -20,9 +20,9 @@ type CkgReceiver struct {
 	CkgRepo        repository.CKGTB
 }
 
-func NewCkgReceiver(config *config.Configurations, db *mongo.Client) *CkgReceiver {
-	pubsubRepo := repository.NewPubSubRepository(config, db)
-	ckgRepo := repository.NewCKGTBRepository(config, db)
+func NewCkgReceiver(ctx context.Context, config *config.Configurations, db *mongo.Client) *CkgReceiver {
+	pubsubRepo := repository.NewPubSubRepository(ctx, config, db)
+	ckgRepo := repository.NewCKGTBRepository(ctx, config, db)
 
 	return &CkgReceiver{
 		Configurations: config,
@@ -42,7 +42,7 @@ func (r *CkgReceiver) Prepare(ctx context.Context, messages []*pubsub.Message) m
 	}
 
 	// Periksa semua message ID lalu hanya ambil yang belum pernah diproses saja
-	existingIDs, err := r.PubSubRepo.GetIncomingIDs(ctx, messageIDs)
+	existingIDs, err := r.PubSubRepo.GetIncomingIDs(messageIDs)
 	if err != nil {
 		slog.Debug("Gagal mengambil daftar message ID existing", "error", err)
 		existingIDs = []string{}
@@ -81,7 +81,7 @@ func (r *CkgReceiver) Prepare(ctx context.Context, messages []*pubsub.Message) m
 			ReceivedAt:  msg.PublishTime.String(),
 			ProcessedAt: nil,
 		}
-		if err := r.PubSubRepo.SaveNewIncoming(ctx, incoming); err != nil {
+		if err := r.PubSubRepo.SaveNewIncoming(incoming); err != nil {
 			slog.Info("Gagal menyimpan incoming message", "id", msg.ID, "error", err)
 		}
 
@@ -122,8 +122,8 @@ func (r *CkgReceiver) Process(ctx context.Context, statusPasien []models.StatusP
 	slog.Debug(fmt.Sprintf("Received valid CKG SkriningCKG object [%s].\n Data: %s\n Attributes: %v", msg.ID, string(msg.Data), msg.Attributes))
 
 	// Save to database
-	_, err := r.CkgRepo.UpdateTbPatientStatus(ctx, statusPasien)
-	r.PubSubRepo.UpdateIncoming(ctx, msg.ID, nil)
+	_, err := r.CkgRepo.UpdateTbPatientStatus(statusPasien)
+	r.PubSubRepo.UpdateIncoming(msg.ID, nil)
 
 	return err
 }

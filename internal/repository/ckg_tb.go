@@ -14,32 +14,49 @@ import (
 )
 
 type CKGTB interface {
-	GetPendingTbSkrining(ctx context.Context, lastTimestamp string) ([]models.SkriningCKGResult, error)
-	GetOnePendingTbSkrining(ctx context.Context, table string, docBytes []byte) (*models.SkriningCKGResult, error)
-	UpdateTbPatientStatus(ctx context.Context, input []models.StatusPasien) ([]models.StatusPasienResult, error)
+	GetPendingTbSkrining(lastTimestamp string) ([]models.SkriningCKGResult, error)
+	GetOnePendingTbSkrining(table string, docBytes []byte) (*models.SkriningCKGResult, error)
+	UpdateTbPatientStatus(input []models.StatusPasien) ([]models.StatusPasienResult, error)
 }
 
 type CKGTBRepository struct {
-	Configurations *config.Configurations
-	Connnection    *mongo.Client
+	Configurations     *config.Configurations
+	Connnection        *mongo.Client
+	Context            context.Context
+	MasterWilayahTable *mongo.Collection
+	MasterFaskesTable  *mongo.Collection
+	TransactionTable   *mongo.Collection
+	TbPatientTable     *mongo.Collection
 
 	useCache     bool
 	cacheWilayah map[string]models.MasterWilayah
 	cacheFaskes  map[string]models.MasterFaskes
 }
 
-func NewCKGTBRepository(config *config.Configurations, conn *mongo.Client) *CKGTBRepository {
+func NewCKGTBRepository(ctx context.Context, config *config.Configurations, conn *mongo.Client) *CKGTBRepository {
+
+	_, masterWilayahTable := utils.GetCollection(ctx, conn, config.CKG.TableMasterWilayah, 0)
+	_, masterFaskesTable := utils.GetCollection(ctx, conn, config.CKG.TableMasterFaskes, 0)
+	_, tbPatientTable := utils.GetCollection(ctx, conn, config.CKG.TableStatus, 0)
+	_, transactionTable := utils.GetCollection(ctx, conn, config.CKG.TableSkrining, 0)
+
 	return &CKGTBRepository{
-		Configurations: config,
-		Connnection:    conn,
+		Configurations:     config,
+		Connnection:        conn,
+		Context:            ctx,
+		useCache:           config.CKG.UseCache,
+		MasterWilayahTable: masterWilayahTable,
+		MasterFaskesTable:  masterFaskesTable,
+		TbPatientTable:     tbPatientTable,
+		TransactionTable:   transactionTable,
 	}
 }
 
-func (r *CKGTBRepository) GetPendingTbSkrining(ctx context.Context, lastTimestamp string) ([]models.SkriningCKGResult, error) {
+func (r *CKGTBRepository) GetPendingTbSkrining(lastTimestamp string) ([]models.SkriningCKGResult, error) {
 	return nil, nil
 }
 
-func (r *CKGTBRepository) GetOnePendingTbSkrining(ctx context.Context, id string, docBytes []byte) (*models.SkriningCKGResult, error) {
+func (r *CKGTBRepository) GetOnePendingTbSkrining(id string, docBytes []byte) (*models.SkriningCKGResult, error) {
 	// Convert to SkriningCKGRaw
 	var raw models.SkriningCKGRaw
 
@@ -56,6 +73,7 @@ func (r *CKGTBRepository) GetOnePendingTbSkrining(ctx context.Context, id string
 		PasienTglLahir:             raw.PasienTglLahir,
 		PasienUsia:                 raw.PasienUsia,
 		PasienPekerjaan:            raw.PasienPekerjaan,
+		PasienAlamat:               raw.PasienAlamat,
 		PasienNoHandphone:          raw.PasienNoHandphone,
 		TglPemeriksaan:             raw.TglPemeriksaan,
 		BeratBadan:                 raw.BeratBadan,
@@ -69,6 +87,8 @@ func (r *CKGTBRepository) GetOnePendingTbSkrining(ctx context.Context, id string
 		PerokokPasif:               raw.PerokokPasif,
 		LansiaDiatas65:             raw.LansiaDiatas65,
 		IbuHamil:                   raw.IbuHamil,
+		RiwayatDm:                  raw.HasilPemeriksaanDm,
+		RiwayatHt:                  raw.HasilPemeriksaanHt,
 		InfeksiHivAids:             raw.InfeksiHivAids,
 		GejalaBatuk:                raw.GejalaDanTandaBatuk,
 		GejalaBbTurun:              raw.GejalaDanTandaBbTurun,
@@ -77,81 +97,20 @@ func (r *CKGTBRepository) GetOnePendingTbSkrining(ctx context.Context, id string
 		GejalaBerkeringatMalam:     raw.GejalaDanTandaBerkeringatMalam,
 		GejalaPembesaranKelenjarGB: raw.GejalaDanTandaPembesaranKelenjarGB,
 		KontakPasienTbc:            raw.KontakPasienTbc,
-		HasilSkriningTbc:           raw.GejalaDanTandaTbc,
-		TerdugaTb:                  raw.TindakLanjutPenegakanDiagnosa,
-		MetodePemeriksaanTb:        raw.MetodePemeriksaanTb,
 		HasilPemeriksaanTbBta:      raw.HasilPemeriksaanTbBta,
 		HasilPemeriksaanTbTcm:      raw.HasilPemeriksaanTbTcm,
 		HasilPemeriksaanPoct:       raw.HasilPemeriksaanPoct,
 		HasilPemeriksaanRadiologi:  raw.HasilPemeriksaanRadiologi,
 	}
 
-	// Set location fields if available
-	if raw.PasienProvinsi != nil {
-		res.PasienProvinsiSatusehat = raw.PasienProvinsi
-	}
-	if raw.PasienKabkota != nil {
-		res.PasienKabkotaSatusehat = raw.PasienKabkota
-	}
-	if raw.PasienKecamatan != nil {
-		res.PasienKecamatanSatusehat = raw.PasienKecamatan
-	}
-	if raw.PasienKelurahan != nil {
-		res.PasienKelurahanSatusehat = raw.PasienKelurahan
-	}
-	if raw.KodeFaskes != nil {
-		res.KodeFaskesSatusehat = raw.KodeFaskes
-	}
-	if raw.ProvinsiFaskes != nil {
-		res.PasienProvinsiSitb = raw.ProvinsiFaskes
-	}
-	if raw.KabkotaFaskes != nil {
-		res.PasienKabkotaSitb = raw.KabkotaFaskes
-	}
-	if raw.NamaFaskes != nil {
-		// You might want to handle this differently
-	}
-
-	// Set location fields if available
-	if raw.PasienProvinsi != nil {
-		res.PasienProvinsiSatusehat = raw.PasienProvinsi
-	}
-	if raw.PasienKabkota != nil {
-		res.PasienKabkotaSatusehat = raw.PasienKabkota
-	}
-	if raw.PasienKecamatan != nil {
-		res.PasienKecamatanSatusehat = raw.PasienKecamatan
-	}
-	if raw.PasienKelurahan != nil {
-		res.PasienKelurahanSatusehat = raw.PasienKelurahan
-	}
-	if raw.KodeFaskes != nil {
-		res.KodeFaskesSatusehat = raw.KodeFaskes
-	}
-	if raw.ProvinsiFaskes != nil {
-		res.PasienProvinsiSitb = raw.ProvinsiFaskes
-	}
-	if raw.KabkotaFaskes != nil {
-		res.PasienKabkotaSitb = raw.KabkotaFaskes
-	}
-	if raw.NamaFaskes != nil {
-		// You might want to handle this differently
-	}
-
 	r._HitungHasilSkrining(raw, res)
-
-	ctxMasterWilayah, collectionMasterWilayah := utils.GetCollection(ctx, r.Connnection, "master_wilayah", 0)
-	ctxMasterFaskes, collectionMasterFaskes := utils.GetCollection(ctx, r.Connnection, "master_faskes", 0)
-	r._MappingMasterData(ctxMasterWilayah, ctxMasterFaskes, collectionMasterWilayah, collectionMasterFaskes, raw, res)
+	r._MappingMasterData(r.Context, r.Context, r.MasterWilayahTable, r.MasterFaskesTable, raw, res)
 
 	return res, nil
 }
 
-func (r *CKGTBRepository) UpdateTbPatientStatus(ctx context.Context, input []models.StatusPasien) ([]models.StatusPasienResult, error) {
+func (r *CKGTBRepository) UpdateTbPatientStatus(input []models.StatusPasien) ([]models.StatusPasienResult, error) {
 	results := make([]models.StatusPasienResult, 0, len(input))
-
-	ctxPasienTb, collectionPasienTb := utils.GetCollection(ctx, r.Connnection, r.Configurations.CKG.TableStatus, 0)
-	ctxTransaction, collectionTransaction := utils.GetCollection(ctx, r.Connnection, r.Configurations.CKG.TableSkrining, 0)
 
 	for i, item := range input {
 		res := models.StatusPasienResult{
@@ -173,7 +132,7 @@ func (r *CKGTBRepository) UpdateTbPatientStatus(ctx context.Context, input []mod
 		}
 
 		// Simpan atau update database.
-		resExist, err := utils.FindPasienTb(ctxPasienTb, collectionPasienTb, item)
+		resExist, err := utils.FindPasienTb(r.Context, r.TbPatientTable, item)
 		if resExist != nil { // sudah ada status
 			if utils.IsNotEmptyString(resExist.PasienCkgID) {
 				res.PasienCkgID = resExist.PasienCkgID
@@ -185,7 +144,7 @@ func (r *CKGTBRepository) UpdateTbPatientStatus(ctx context.Context, input []mod
 					{Key: "nik", Value: item.PasienNIK},
 				}
 
-				errTx := collectionTransaction.FindOne(ctxTransaction, filterTx).Decode(&transaction)
+				errTx := r.TransactionTable.FindOne(r.Context, filterTx).Decode(&transaction)
 				if errTx == nil { // Transaksi layanan CKG ditemukan
 					item.PasienCkgID = &transaction.PasienCKGID
 					res.PasienCkgID = &transaction.PasienCKGID
@@ -223,7 +182,7 @@ func (r *CKGTBRepository) UpdateTbPatientStatus(ctx context.Context, input []mod
 				item.HasilAkhir = nil
 			}
 
-			msg, err1 := utils.UpdatePasienTb(ctxPasienTb, collectionPasienTb, item)
+			msg, err1 := utils.UpdatePasienTb(r.Context, r.TbPatientTable, item)
 			res.Respons = msg
 			if err1 != nil {
 				res.IsError = true
@@ -236,7 +195,7 @@ func (r *CKGTBRepository) UpdateTbPatientStatus(ctx context.Context, input []mod
 					{Key: "nik", Value: item.PasienNIK},
 				}
 
-				errTx := collectionTransaction.FindOne(ctxTransaction, filterTx).Decode(&transaction)
+				errTx := r.TransactionTable.FindOne(r.Context, filterTx).Decode(&transaction)
 				if errTx == nil { // Transaksi layanan CKG ditemukan
 					item.PasienCkgID = &transaction.PasienCKGID
 					res.PasienCkgID = &transaction.PasienCKGID
@@ -271,7 +230,7 @@ func (r *CKGTBRepository) UpdateTbPatientStatus(ctx context.Context, input []mod
 				item.HasilAkhir = nil
 			}
 
-			msg, err1 := utils.InsertPasienTb(ctxPasienTb, collectionPasienTb, item)
+			msg, err1 := utils.InsertPasienTb(r.Context, r.TbPatientTable, item)
 			res.Respons = msg
 			if err1 != nil {
 				res.IsError = true
@@ -438,45 +397,55 @@ func (r *CKGTBRepository) _HitungHasilSkrining(raw models.SkriningCKGRaw, res *m
 
 	res.HasilSkriningTbc = &hasilSkrining
 	if hasilSkrining == "Ya" {
-		if raw.MetodePemeriksaanTb != nil {
-			metodePemeriksaanTB := strings.ToUpper(*raw.MetodePemeriksaanTb)
-			switch metodePemeriksaanTB {
-			case "TCM":
-				if raw.HasilPemeriksaanTbTcm != nil {
-					res.MetodePemeriksaanTb = &metodePemeriksaanTB
-
-					//TODO: koordinasikan mapping nilai TCM dengan DE
-					// convert hasil TCM ke ["not_detected", "rif_sen", "rif_res", "rif_indet", "invalid", "error", "no_result", "tdl"]
-					mapTcm := map[string]string{
-						"neg":       "not_detected",
-						"rif sen":   "rif_sen",
-						"rif res":   "rif_res",
-						"rif indet": "rif_indet",
-						"invalid":   "invalid",
-						"error":     "error",
-						"no result": "no_result",
-					}
-					if utils.IsNotEmptyString(raw.HasilPemeriksaanTbTcm) {
-						tcm := strings.ToLower(*raw.HasilPemeriksaanTbTcm)
-						if val, ok := mapTcm[tcm]; ok {
-							res.HasilPemeriksaanTbTcm = &val
-						}
-					}
-				}
-			case "BTA":
-				if raw.HasilPemeriksaanTbBta != nil {
-					res.MetodePemeriksaanTb = &metodePemeriksaanTB
-
-					//TODO: koordinasikan mapping nilai BTA dengan DE
-					// convert hasil BTA ke ["negatif", "positif"]
-					var hasilTbBta *string
-					if utils.IsNotEmptyString(raw.HasilPemeriksaanTbBta) {
-						bta := strings.ToLower(*raw.HasilPemeriksaanTbBta)
-						hasilTbBta = &bta
-					}
-					res.HasilPemeriksaanTbBta = hasilTbBta
+		if raw.HasilPemeriksaanTbTcm != nil {
+			//TODO: koordinasikan mapping nilai TCM dengan DE
+			// convert hasil TCM ke ["not_detected", "rif_sen", "rif_res", "rif_indet", "invalid", "error", "no_result", "tdl"]
+			mapTcm := map[string]string{
+				"neg":       "not_detected",
+				"rif sen":   "rif_sen",
+				"rif res":   "rif_res",
+				"rif indet": "rif_indet",
+				"invalid":   "invalid",
+				"error":     "error",
+				"no result": "no_result",
+			}
+			if utils.IsNotEmptyString(raw.HasilPemeriksaanTbTcm) {
+				tcm := strings.ToLower(*raw.HasilPemeriksaanTbTcm)
+				if val, ok := mapTcm[tcm]; ok {
+					res.HasilPemeriksaanTbTcm = &val
 				}
 			}
+		}
+
+		if raw.HasilPemeriksaanTbBta != nil {
+			//TODO: koordinasikan mapping nilai BTA dengan DE
+			// convert hasil BTA ke ["negatif", "positif"]
+			var hasilTbBta *string
+			if utils.IsNotEmptyString(raw.HasilPemeriksaanTbBta) {
+				bta := strings.ToLower(*raw.HasilPemeriksaanTbBta)
+				hasilTbBta = &bta
+			}
+			res.HasilPemeriksaanTbBta = hasilTbBta
+		}
+
+		if raw.HasilPemeriksaanPoct != nil {
+			// convert hasil POCT ke ["negatif", "positif"]
+			var hasilTbPoct *string
+			if utils.IsNotEmptyString(raw.HasilPemeriksaanPoct) {
+				poct := strings.ToLower(*raw.HasilPemeriksaanPoct)
+				hasilTbPoct = &poct
+			}
+			res.HasilPemeriksaanPoct = hasilTbPoct
+		}
+
+		if raw.HasilPemeriksaanRadiologi != nil {
+			// convert hasil Radiologi ke ["normal", "abnormalitas-tbc", "abnormalitas-bukan-tbc"]
+			var hasilHasilPemeriksaanRadiologi *string
+			if utils.IsNotEmptyString(raw.HasilPemeriksaanRadiologi) {
+				radiologi := strings.ReplaceAll(strings.ToLower(*raw.HasilPemeriksaanRadiologi), " ", "-")
+				hasilHasilPemeriksaanRadiologi = &radiologi
+			}
+			res.HasilPemeriksaanRadiologi = hasilHasilPemeriksaanRadiologi
 		}
 
 		res.TerdugaTb = &hasilSkrining

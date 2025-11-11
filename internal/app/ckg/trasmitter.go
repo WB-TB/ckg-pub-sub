@@ -25,9 +25,9 @@ type CkgTransmitter struct {
 	CkgRepo        repository.CKGTB
 }
 
-func NewCkgTransmitter(config *config.Configurations, db *mongo.Client, pubsub *pubsub.Client) *CkgTransmitter {
-	pubsubRepo := repository.NewPubSubRepository(config, db)
-	ckgRepo := repository.NewCKGTBRepository(config, db)
+func NewCkgTransmitter(ctx context.Context, config *config.Configurations, db *mongo.Client, pubsub *pubsub.Client) *CkgTransmitter {
+	pubsubRepo := repository.NewPubSubRepository(ctx, config, db)
+	ckgRepo := repository.NewCKGTBRepository(ctx, config, db)
 
 	return &CkgTransmitter{
 		Configurations: config,
@@ -181,7 +181,7 @@ func (t *CkgTransmitter) processChange(ctx context.Context, changeDoc bson.M) er
 		return fmt.Errorf("gagal marshal document: %v", err)
 	}
 
-	skriningResult, err := t.CkgRepo.GetOnePendingTbSkrining(ctx, t.Configurations.CKG.TableSkrining, docBytes)
+	skriningResult, err := t.CkgRepo.GetOnePendingTbSkrining(t.Configurations.CKG.TableSkrining, docBytes)
 	if err != nil || skriningResult == nil {
 		return err
 	}
@@ -276,7 +276,7 @@ func (t *CkgTransmitter) Produce(ctx context.Context) error {
 					ID:        msgID,
 					CreatedAt: time.Now().Format(time.RFC1123),
 				}
-				t.PubSubRepo.SaveNewOutgoing(ctx, outgoing)
+				t.PubSubRepo.SaveNewOutgoing(outgoing)
 			}
 
 			// tiap 10 langkah istirahat bentar, serius santai
@@ -294,7 +294,7 @@ func (t *CkgTransmitter) Prepare(ctx context.Context) ([]*models.SkriningCKGResu
 	output := make([]*models.SkriningCKGResult, 0)
 
 	// Get last timestamp from outgoing table
-	lastTimestamp, err := t.PubSubRepo.GetLastOutgoingTimestamp(ctx)
+	lastTimestamp, err := t.PubSubRepo.GetLastOutgoingTimestamp()
 	if err != nil {
 		return output, fmt.Errorf("gagal mengambil timestamp terakhir dari outgoing: %v", err)
 	}
@@ -306,7 +306,7 @@ func (t *CkgTransmitter) Prepare(ctx context.Context) ([]*models.SkriningCKGResu
 	}
 
 	// Get status pasien data from database
-	pending, err := t.CkgRepo.GetPendingTbSkrining(ctx, lastTimestamp)
+	pending, err := t.CkgRepo.GetPendingTbSkrining(lastTimestamp)
 	if err == nil {
 		for _, skrining := range pending {
 			output = append(output, &skrining)

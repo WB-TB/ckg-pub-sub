@@ -13,6 +13,7 @@ import (
 
 type App struct {
 	Configurations *config.Configurations
+	Context        context.Context
 	Database       *mongo.Client
 	PubSub         *pubsubInternal.Client
 }
@@ -42,34 +43,31 @@ func InitApp() (*App, error) {
 
 	return &App{
 		Configurations: cfg,
+		Context:        ctx,
 		Database:       dbConn,
 		PubSub:         pubsubClient,
 	}, nil
 }
 
 func (a *App) RunPubSubConsumer(receiver pubsubInternal.Receiver) {
-	ctx := context.Background()
-
 	// Ensure topic and subscription exist
-	if !a.PubSub.EnsureTopicExists(ctx) {
+	if !a.PubSub.EnsureTopicExists(a.Context) {
 		slog.Error("Topic tidak ditemukan")
 		return
 	}
 
-	if !a.PubSub.EnsureSubscriptionExists(ctx) {
+	if !a.PubSub.EnsureSubscriptionExists(a.Context) {
 		slog.Error("Subscription tidak ditemukan")
 		return
 	}
 
 	// Start consuming messages in a loop
-	a.PubSub.StartConsumer(ctx, receiver)
+	a.PubSub.StartConsumer(a.Context, receiver)
 }
 
 func (a *App) RunPubSubProducer(transmitter pubsubInternal.Transmitter) {
-	ctx := context.Background()
-
 	// Start procuce messages one time
-	a.PubSub.StartProducer(ctx, transmitter)
+	a.PubSub.StartProducer(a.Context, transmitter)
 }
 
 func (a *App) Close() {

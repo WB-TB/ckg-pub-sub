@@ -22,6 +22,7 @@ func main() {
 
 	slog.Info("Application initialized successfully")
 	app.RunPubSubProducer(ckg.NewCkgTransmitter(
+		app.Context,
 		app.Configurations,
 		app.Database,
 		app.PubSub,

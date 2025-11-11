@@ -48,12 +48,15 @@ func setDefaults() map[string]any {
 		"db.attributes": "",
 
 		// CKG
-		"ckg.tableskrining": "skrining_tb",
-		"ckg.tablestatus":   "pasien_tb",
-		"ckg.tableincoming": "ckg_pubsub_incoming",
-		"ckg.tableoutgoing": "ckg_pubsub_outgoing",
-		"ckg.markerfield":   "transactionSource",
-		"ckg.markerconsume": "STATUS-PASIEN-TB",
-		"ckg.markerproduce": "SKRINING-CKG-TB",
+		"ckg.usecache":           false,
+		"ckg.tablemasterwilayah": "master_wilayah",
+		"ckg.tablemasterfaskes":  "master_faskes",
+		"ckg.tableskrining":      "skrining_tb",
+		"ckg.tablestatus":        "pasien_tb",
+		"ckg.tableincoming":      "ckg_pubsub_incoming",
+		"ckg.tableoutgoing":      "ckg_pubsub_outgoing",
+		"ckg.markerfield":        "transactionSource",
+		"ckg.markerconsume":      "STATUS-PASIEN-TB",
+		"ckg.markerproduce":      "SKRINING-CKG-TB",
 	}
 }

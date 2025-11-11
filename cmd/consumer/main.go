@@ -22,6 +22,7 @@ func main() {
 
 	slog.Info("Application initialized successfully")
 	app.RunPubSubConsumer(ckg.NewCkgReceiver(
+		app.Context,
 		app.Configurations,
 		app.Database,
 	))
