@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  # MongoDB Service
+  mongodb:
+    image: mongo:7.0
+    container_name: pubsub-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: ckg_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./schema-sitb-ckg.sql:/docker-entrypoint-initdb.d/schema-sitb-ckg.sql:ro
+    networks:
+      - pubsub-network
+
+  # Google Cloud Pub/Sub Emulator (untuk development lokal)
+  pubsub-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:latest
+    container_name: pubsub-emulator
+    restart: unless-stopped
+    command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
+    ports:
+      - "8085:8085"
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials.json
+    volumes:
+      - ./credentials.json:/app/credentials.json:ro
+    networks:
+      - pubsub-network
+    depends_on:
+      - mongodb
+
+  # Producer Service
+  producer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: pubsub-producer
+    restart: unless-stopped
+    ports:
+      - "2345:2345"
+    environment:
+      - APP_ENV=development
+      - APP_LOGLEVEL=debug
+      - GOOGLE_PROJECT_ID=local-project
+      - GOOGLE_CREDENTIALS_PATH=/app/credentials.json
+      - PUBSUB_TOPIC=ckg-tb-topic
+      - PUBSUB_SUBSCRIPTION=ckg-tb-subscription
+      - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
+      - DB_DRIVER=mongodb
+      - DB_HOST=mongodb
+      - DB_PORT=27017
+      - DB_DATABASE=ckg_db
+      - DB_USERNAME=admin
+      - DB_PASSWORD=password
+    volumes:
+      - .:/app
+      - ./credentials.json:/app/credentials.json:ro
+    command: air --build.cmd "go build -o /app/producer /app/cmd/producer/main.go" --build.bin "/app/producer"
+    networks:
+      - pubsub-network
+    depends_on:
+      - mongodb
+      - pubsub-emulator
+
+  # Consumer Service
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: pubsub-consumer
+    restart: unless-stopped
+    ports:
+      - "2346:2345"
+    environment:
+      - APP_ENV=development
+      - APP_LOGLEVEL=debug
+      - GOOGLE_PROJECT_ID=local-project
+      - GOOGLE_CREDENTIALS_PATH=/app/credentials.json
+      - PUBSUB_TOPIC=ckg-tb-topic
+      - PUBSUB_SUBSCRIPTION=ckg-tb-subscription
+      - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
+      - DB_DRIVER=mongodb
+      - DB_HOST=mongodb
+      - DB_PORT=27017
+      - DB_DATABASE=ckg_db
+      - DB_USERNAME=admin
+      - DB_PASSWORD=password
+    volumes:
+      - .:/app
+      - ./credentials.json:/app/credentials.json:ro
+    command: air --build.cmd "go build -o /app/consumer /app/cmd/consumer/main.go" --build.bin "/app/consumer"
+    networks:
+      - pubsub-network
+    depends_on:
+      - mongodb
+      - pubsub-emulator
+
+  # Production Build Service (untuk membuat binary production)
+  builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: pubsub-builder
+    volumes:
+      - ./bin:/app/bin
+    networks:
+      - pubsub-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  pubsub-network:
+    driver: bridge
