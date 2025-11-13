@@ -3,7 +3,10 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"pubsub-ckg-tb/internal/config"
+	"pubsub-ckg-tb/internal/db/connection"
+	"pubsub-ckg-tb/internal/db/dbtypes"
 	"pubsub-ckg-tb/internal/db/utils"
 	"pubsub-ckg-tb/internal/models"
 	"slices"
@@ -14,46 +17,68 @@ import (
 )
 
 type CKGTB interface {
-	GetPendingTbSkrining(lastTimestamp string) ([]models.SkriningCKGResult, error)
+	GetPendingTbSkrining(start string, end string, limit int64) ([]models.SkriningCKGResult, error)
 	GetOnePendingTbSkrining(table string, docBytes []byte) (*models.SkriningCKGResult, error)
 	UpdateTbPatientStatus(input []models.StatusPasien) ([]models.StatusPasienResult, error)
 }
 
 type CKGTBRepository struct {
-	Configurations     *config.Configurations
-	Connnection        *mongo.Client
-	Context            context.Context
-	MasterWilayahTable *mongo.Collection
-	MasterFaskesTable  *mongo.Collection
-	TransactionTable   *mongo.Collection
-	TbPatientTable     *mongo.Collection
+	Configurations *config.Configurations
+	Connnection    connection.DatabaseConnection
+	Context        context.Context
+	// MasterWilayahTable any
+	// MasterFaskesTable  any
+	// TransactionTable   any
+	// TbPatientTable     any
 
 	useCache     bool
 	cacheWilayah map[string]models.MasterWilayah
 	cacheFaskes  map[string]models.MasterFaskes
 }
 
-func NewCKGTBRepository(ctx context.Context, config *config.Configurations, conn *mongo.Client) *CKGTBRepository {
+func NewCKGTBRepository(ctx context.Context, config *config.Configurations, conn connection.DatabaseConnection) *CKGTBRepository {
 
-	_, masterWilayahTable := utils.GetCollection(ctx, conn, config.CKG.TableMasterWilayah, 0)
-	_, masterFaskesTable := utils.GetCollection(ctx, conn, config.CKG.TableMasterFaskes, 0)
-	_, tbPatientTable := utils.GetCollection(ctx, conn, config.CKG.TableStatus, 0)
-	_, transactionTable := utils.GetCollection(ctx, conn, config.CKG.TableSkrining, 0)
+	// _, masterWilayahTable := utils.GetCollection(ctx, conn, config.CKG.TableMasterWilayah, 0)
+	// _, masterFaskesTable := utils.GetCollection(ctx, conn, config.CKG.TableMasterFaskes, 0)
+	// _, tbPatientTable := utils.GetCollection(ctx, conn, config.CKG.TableStatus, 0)
+	// _, transactionTable := utils.GetCollection(ctx, conn, config.CKG.TableSkrining, 0)
 
 	return &CKGTBRepository{
-		Configurations:     config,
-		Connnection:        conn,
-		Context:            ctx,
-		useCache:           config.CKG.UseCache,
-		MasterWilayahTable: masterWilayahTable,
-		MasterFaskesTable:  masterFaskesTable,
-		TbPatientTable:     tbPatientTable,
-		TransactionTable:   transactionTable,
+		Configurations: config,
+		Connnection:    conn,
+		Context:        ctx,
+		useCache:       config.CKG.UseCache,
+		// MasterWilayahTable: masterWilayahTable,
+		// MasterFaskesTable:  masterFaskesTable,
+		// TbPatientTable:     tbPatientTable,
+		// TransactionTable:   transactionTable,
 	}
 }
 
-func (r *CKGTBRepository) GetPendingTbSkrining(lastTimestamp string) ([]models.SkriningCKGResult, error) {
-	return nil, nil
+func (r *CKGTBRepository) GetPendingTbSkrining(start string, end string, limit int64) ([]models.SkriningCKGResult, error) {
+	// Get Skrining
+	filter := dbtypes.M{
+		"updated_at": dbtypes.M{
+			"$gte": start,
+			"$lte": end,
+		},
+	}
+	ret, err := r.Connnection.Find(r.Context, r.Configurations.CKG.TableSkrining, nil, filter, nil, limit, 0)
+	if err != nil {
+		slog.Debug("GetPendingTbSkrining:", "error", err)
+		return nil, err
+	}
+	result := []models.SkriningCKGResult{}
+	for _, entry := range ret.([]dbtypes.M) {
+		raw := models.SkriningCKGRaw{}
+		raw.FromMap(entry)
+		res := raw.ToSkriningCKGResult()
+		r._HitungHasilSkrining(raw, &res)
+		r._MappingMasterData(r.Context, r.Context, raw, &res)
+		result = append(result, res)
+	}
+
+	return result, nil
 }
 
 func (r *CKGTBRepository) GetOnePendingTbSkrining(id string, docBytes []byte) (*models.SkriningCKGResult, error) {
@@ -65,7 +90,8 @@ func (r *CKGTBRepository) GetOnePendingTbSkrining(id string, docBytes []byte) (*
 	}
 
 	// Create new SkriningCKGResult from raw data
-	res := &models.SkriningCKGResult{
+	res := raw.ToSkriningCKGResult()
+	/*res := &models.SkriningCKGResult{
 		PasienCKGID:                raw.PasienCKGID,
 		PasienNIK:                  raw.PasienNIK,
 		PasienNama:                 raw.PasienNama,
@@ -101,16 +127,17 @@ func (r *CKGTBRepository) GetOnePendingTbSkrining(id string, docBytes []byte) (*
 		HasilPemeriksaanTbTcm:      raw.HasilPemeriksaanTbTcm,
 		HasilPemeriksaanPoct:       raw.HasilPemeriksaanPoct,
 		HasilPemeriksaanRadiologi:  raw.HasilPemeriksaanRadiologi,
-	}
+	}*/
 
-	r._HitungHasilSkrining(raw, res)
-	r._MappingMasterData(r.Context, r.Context, r.MasterWilayahTable, r.MasterFaskesTable, raw, res)
+	r._HitungHasilSkrining(raw, &res)
+	r._MappingMasterData(r.Context, r.Context, raw, &res)
 
-	return res, nil
+	return &res, nil
 }
 
 func (r *CKGTBRepository) UpdateTbPatientStatus(input []models.StatusPasien) ([]models.StatusPasienResult, error) {
 	results := make([]models.StatusPasienResult, 0, len(input))
+	collectionName := r.Configurations.CKG.TableStatus
 
 	for i, item := range input {
 		res := models.StatusPasienResult{
@@ -132,7 +159,7 @@ func (r *CKGTBRepository) UpdateTbPatientStatus(input []models.StatusPasien) ([]
 		}
 
 		// Simpan atau update database.
-		resExist, err := utils.FindPasienTb(r.Context, r.TbPatientTable, item)
+		resExist, err := utils.FindPasienTb(r.Context, r.Connnection, collectionName, item)
 		if resExist != nil { // sudah ada status
 			if utils.IsNotEmptyString(resExist.PasienCkgID) {
 				res.PasienCkgID = resExist.PasienCkgID
@@ -140,11 +167,15 @@ func (r *CKGTBRepository) UpdateTbPatientStatus(input []models.StatusPasien) ([]
 			// Ditemukan tapi id CKG belum di set (kemungkinan SITB mendahului lapor)
 			if !utils.IsNotEmptyString(resExist.PasienCkgID) && utils.IsNotEmptyString(item.PasienNIK) {
 				var transaction models.SkriningCKGRaw
-				filterTx := bson.D{
-					{Key: "nik", Value: item.PasienNIK},
+				// filterTx := bson.D{
+				// 	{Key: "nik", Value: item.PasienNIK},
+				// }
+				filterTx := dbtypes.M{
+					"nik": item.PasienNIK,
 				}
 
-				errTx := r.TransactionTable.FindOne(r.Context, filterTx).Decode(&transaction)
+				// errTx := r.TransactionTable.FindOne(r.Context, filterTx).Decode(&transaction)
+				errTx := r.Connnection.FindOne(r.Context, &transaction, collectionName, nil, filterTx, nil)
 				if errTx == nil { // Transaksi layanan CKG ditemukan
 					item.PasienCkgID = &transaction.PasienCKGID
 					res.PasienCkgID = &transaction.PasienCKGID
@@ -182,7 +213,7 @@ func (r *CKGTBRepository) UpdateTbPatientStatus(input []models.StatusPasien) ([]
 				item.HasilAkhir = nil
 			}
 
-			msg, err1 := utils.UpdatePasienTb(r.Context, r.TbPatientTable, item)
+			msg, err1 := utils.UpdatePasienTb(r.Context, r.Connnection, collectionName, item)
 			res.Respons = msg
 			if err1 != nil {
 				res.IsError = true
@@ -191,11 +222,15 @@ func (r *CKGTBRepository) UpdateTbPatientStatus(input []models.StatusPasien) ([]
 			// Coba cari di transaksi
 			if utils.IsNotEmptyString(item.PasienNIK) {
 				var transaction models.SkriningCKGRaw
-				filterTx := bson.D{
-					{Key: "nik", Value: item.PasienNIK},
+				// filterTx := bson.D{
+				// 	{Key: "nik", Value: item.PasienNIK},
+				// }
+				filterTx := dbtypes.M{
+					"nik": item.PasienNIK,
 				}
 
-				errTx := r.TransactionTable.FindOne(r.Context, filterTx).Decode(&transaction)
+				// errTx := r.TransactionTable.FindOne(r.Context, filterTx).Decode(&transaction)
+				errTx := r.Connnection.FindOne(r.Context, &transaction, collectionName, nil, filterTx, nil)
 				if errTx == nil { // Transaksi layanan CKG ditemukan
 					item.PasienCkgID = &transaction.PasienCKGID
 					res.PasienCkgID = &transaction.PasienCKGID
@@ -230,7 +265,7 @@ func (r *CKGTBRepository) UpdateTbPatientStatus(input []models.StatusPasien) ([]
 				item.HasilAkhir = nil
 			}
 
-			msg, err1 := utils.InsertPasienTb(r.Context, r.TbPatientTable, item)
+			msg, err1 := utils.InsertPasienTb(r.Context, r.Connnection, collectionName, item)
 			res.Respons = msg
 			if err1 != nil {
 				res.IsError = true
@@ -245,9 +280,10 @@ func (r *CKGTBRepository) UpdateTbPatientStatus(input []models.StatusPasien) ([]
 	return results, nil
 }
 
-func (r *CKGTBRepository) _MappingMasterData(ctxMasterWilayah context.Context, ctxMasterFaskes context.Context, collectionMasterWilayah *mongo.Collection, collectionMasterFaskes *mongo.Collection, raw models.SkriningCKGRaw, res *models.SkriningCKGResult) {
+func (r *CKGTBRepository) _MappingMasterData(ctxMasterWilayah context.Context, ctxMasterFaskes context.Context, raw models.SkriningCKGRaw, res *models.SkriningCKGResult) {
+	collectionNameMasterWilayah := r.Configurations.CKG.TableMasterWilayah
 	if utils.IsNotEmptyString(raw.PasienKelurahan) {
-		kelurahan, _ := utils.FindMasterWilayah(*raw.PasienKelurahan, ctxMasterWilayah, collectionMasterWilayah, r.useCache, &r.cacheWilayah)
+		kelurahan, _ := utils.FindMasterWilayah(*raw.PasienKelurahan, ctxMasterWilayah, r.Connnection, collectionNameMasterWilayah, r.useCache, &r.cacheWilayah)
 		if kelurahan != nil {
 			res.PasienKelurahanSatusehat = raw.PasienKelurahan
 			res.PasienKelurahanSitb = kelurahan.KelurahanID
@@ -255,7 +291,7 @@ func (r *CKGTBRepository) _MappingMasterData(ctxMasterWilayah context.Context, c
 	}
 
 	if utils.IsNotEmptyString(raw.PasienKecamatan) {
-		kecamatan, _ := utils.FindMasterWilayah(*raw.PasienKecamatan, ctxMasterWilayah, collectionMasterWilayah, r.useCache, &r.cacheWilayah)
+		kecamatan, _ := utils.FindMasterWilayah(*raw.PasienKecamatan, ctxMasterWilayah, r.Connnection, collectionNameMasterWilayah, r.useCache, &r.cacheWilayah)
 		if kecamatan != nil {
 			res.PasienKecamatanSatusehat = raw.PasienKecamatan
 			res.PasienKecamatanSitb = kecamatan.KecamatanID
@@ -263,7 +299,7 @@ func (r *CKGTBRepository) _MappingMasterData(ctxMasterWilayah context.Context, c
 	}
 
 	if utils.IsNotEmptyString(raw.PasienKabkota) {
-		kabupaten, _ := utils.FindMasterWilayah(*raw.PasienKabkota, ctxMasterWilayah, collectionMasterWilayah, r.useCache, &r.cacheWilayah)
+		kabupaten, _ := utils.FindMasterWilayah(*raw.PasienKabkota, ctxMasterWilayah, r.Connnection, collectionNameMasterWilayah, r.useCache, &r.cacheWilayah)
 		if kabupaten != nil {
 			res.PasienKabkotaSatusehat = raw.PasienKabkota
 			res.PasienKabkotaSitb = kabupaten.KabupatenID
@@ -271,7 +307,7 @@ func (r *CKGTBRepository) _MappingMasterData(ctxMasterWilayah context.Context, c
 	}
 
 	if utils.IsNotEmptyString(raw.PasienProvinsi) {
-		provinsi, _ := utils.FindMasterWilayah(*raw.PasienProvinsi, ctxMasterWilayah, collectionMasterWilayah, r.useCache, &r.cacheWilayah)
+		provinsi, _ := utils.FindMasterWilayah(*raw.PasienProvinsi, ctxMasterWilayah, r.Connnection, collectionNameMasterWilayah, r.useCache, &r.cacheWilayah)
 		if provinsi != nil {
 			res.PasienProvinsiSatusehat = raw.PasienProvinsi
 			res.PasienProvinsiSitb = provinsi.ProvinsiID
@@ -279,7 +315,8 @@ func (r *CKGTBRepository) _MappingMasterData(ctxMasterWilayah context.Context, c
 	}
 
 	if utils.IsNotEmptyString(raw.KodeFaskes) {
-		faskes, _ := utils.FindMasterFaskes(*raw.KodeFaskes, ctxMasterFaskes, collectionMasterFaskes, r.useCache, &r.cacheFaskes)
+		collectionNameMasterFaskes := r.Configurations.CKG.TableMasterFaskes
+		faskes, _ := utils.FindMasterFaskes(*raw.KodeFaskes, ctxMasterFaskes, r.Connnection, collectionNameMasterFaskes, r.useCache, &r.cacheFaskes)
 		if faskes != nil {
 			res.KodeFaskesSatusehat = raw.KodeFaskes
 			res.KodeFaskesSITB = faskes.ID
