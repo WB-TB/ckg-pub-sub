@@ -5,22 +5,22 @@ import (
 	"fmt"
 	"log/slog"
 	"pubsub-ckg-tb/internal/config"
+	"pubsub-ckg-tb/internal/db/connection"
 	"pubsub-ckg-tb/internal/models"
 	"pubsub-ckg-tb/internal/repository"
 	"slices"
 
 	"cloud.google.com/go/pubsub/v2"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type CkgReceiver struct {
 	Configurations *config.Configurations
-	Database       *mongo.Client
+	Database       connection.DatabaseConnection
 	PubSubRepo     repository.PubSub
 	CkgRepo        repository.CKGTB
 }
 
-func NewCkgReceiver(ctx context.Context, config *config.Configurations, db *mongo.Client) *CkgReceiver {
+func NewCkgReceiver(ctx context.Context, config *config.Configurations, db connection.DatabaseConnection) *CkgReceiver {
 	pubsubRepo := repository.NewPubSubRepository(ctx, config, db)
 	ckgRepo := repository.NewCKGTBRepository(ctx, config, db)
 
@@ -32,8 +32,8 @@ func NewCkgReceiver(ctx context.Context, config *config.Configurations, db *mong
 	}
 }
 
-func (r *CkgReceiver) Prepare(ctx context.Context, messages []*pubsub.Message) map[string][]interface{} {
-	validMessages := make(map[string][]interface{})
+func (r *CkgReceiver) Prepare(ctx context.Context, messages []*pubsub.Message) map[string][]any {
+	validMessages := make(map[string][]any)
 
 	// Extract message IDs
 	messageIDs := make([]string, 0, len(messages))
@@ -86,7 +86,7 @@ func (r *CkgReceiver) Prepare(ctx context.Context, messages []*pubsub.Message) m
 		}
 
 		// register ke validMessages
-		validMessages[msg.ID] = []interface{}{incoming, msg, pubsubObjectWrapper.Data}
+		validMessages[msg.ID] = []any{incoming, msg, pubsubObjectWrapper.Data}
 	}
 
 	return validMessages

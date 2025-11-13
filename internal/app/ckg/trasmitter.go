@@ -8,24 +8,24 @@ import (
 	"time"
 
 	"pubsub-ckg-tb/internal/config"
+	"pubsub-ckg-tb/internal/db/connection"
+	"pubsub-ckg-tb/internal/db/mongo"
 	"pubsub-ckg-tb/internal/models"
 	"pubsub-ckg-tb/internal/pubsub"
 	"pubsub-ckg-tb/internal/repository"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type CkgTransmitter struct {
 	Configurations *config.Configurations
-	Database       *mongo.Client
+	Database       connection.DatabaseConnection
 	PubSub         *pubsub.Client
 	PubSubRepo     repository.PubSub
 	CkgRepo        repository.CKGTB
 }
 
-func NewCkgTransmitter(ctx context.Context, config *config.Configurations, db *mongo.Client, pubsub *pubsub.Client) *CkgTransmitter {
+func NewCkgTransmitter(ctx context.Context, config *config.Configurations, db connection.DatabaseConnection, pubsub *pubsub.Client) *CkgTransmitter {
 	pubsubRepo := repository.NewPubSubRepository(ctx, config, db)
 	ckgRepo := repository.NewCKGTBRepository(ctx, config, db)
 
@@ -40,26 +40,34 @@ func NewCkgTransmitter(ctx context.Context, config *config.Configurations, db *m
 
 func (t *CkgTransmitter) Watch(ctx context.Context) {
 	// Get database and collection names from config
-	databaseName := t.Configurations.Database.Database
-	collectionName := t.Configurations.CKG.TableSkrining
+	// databaseName := t.Configurations.Database.Database
+	// collectionName := t.Configurations.CKG.TableSkrining
 
-	// Get database and collection
-	db := t.Database.Database(databaseName)
-	collection := db.Collection(collectionName)
+	// Only support MongoDB for now
+	if t.Database.GetDriver() != "mongodb" {
+		slog.Error("Only MongoDB is supported for change streams")
+		return
+	}
 
-	// Create change stream options
-	changeStreamOptions := options.ChangeStream()
-	changeStreamOptions.SetFullDocument(options.UpdateLookup)
+	// mongoConn := t.Database.GetMongoConnection()
+	// db := mongoConn.Database(databaseName)
+	// collection := db.Collection(collectionName)
+	mongoDB := t.Database.(*mongo.MongoDBConnection)
+	// collection := mongoDB.GetCollection(collectionName)
 
-	// Create change stream
-	changeStream, err := collection.Watch(ctx, []bson.M{}, changeStreamOptions)
-	if err != nil {
-		slog.Error("Gagal membuat change stream", "error", err, "database", databaseName, "collection", collectionName)
+	// // Create change stream options
+	// changeStreamOptions := options.ChangeStream()
+	// changeStreamOptions.SetFullDocument(options.UpdateLookup)
+
+	// // Create change stream
+	// changeStream, err := collection.Watch(ctx, []bson.M{}, changeStreamOptions)
+	changeStream := mongoDB.Watch(ctx, t.Configurations.CKG.TableSkrining)
+	if changeStream == nil {
 		return
 	}
 	defer changeStream.Close(ctx)
 
-	slog.Info("Memulai watch untuk perubahan pada collection", "database", databaseName, "collection", collectionName)
+	slog.Info("Memulai watch untuk perubahan pada collection", "database", t.Configurations.Database.Database, "collection", t.Configurations.CKG.TableSkrining)
 
 	// Listen for changes
 	for {
@@ -94,19 +102,19 @@ func (t *CkgTransmitter) Watch(ctx context.Context) {
 							return
 						default:
 							// Close existing change stream
-							changeStream.Close(ctx)
+							// changeStream.Close(ctx)
 
 							// Check MongoDB connection health
-							if err := t.checkMongoDBConnection(ctx); err != nil {
+							if err := t.Database.Ping(ctx); err != nil {
 								slog.Error("MongoDB connection is not healthy, waiting before retry...", "error", err)
 								time.Sleep(5 * time.Second)
 								continue
 							}
 
 							// Create new change stream
-							changeStream, err = collection.Watch(ctx, []bson.M{}, changeStreamOptions)
+							// changeStream, err = collection.Watch(ctx, []bson.M{}, changeStreamOptions)
+							changeStream, err = mongoDB.RestartWatch(ctx, t.Configurations.CKG.TableSkrining, changeStream)
 							if err != nil {
-								slog.Error("Gagal membuat ulang change stream setelah reconnect", "error", err)
 								// Wait before retrying
 								time.Sleep(5 * time.Second)
 								continue
@@ -122,10 +130,10 @@ func (t *CkgTransmitter) Watch(ctx context.Context) {
 							return
 						default:
 							slog.Info("Mencoba membuat ulang change stream...")
-							changeStream.Close(ctx)
-							changeStream, err = collection.Watch(ctx, []bson.M{}, changeStreamOptions)
+							// changeStream.Close(ctx)
+							// changeStream, err = collection.Watch(ctx, []bson.M{}, changeStreamOptions)
+							changeStream, err = mongoDB.RestartWatch(ctx, t.Configurations.CKG.TableSkrining, changeStream)
 							if err != nil {
-								slog.Error("Gagal membuat ulang change stream", "error", err)
 								// Wait before retrying
 								time.Sleep(5 * time.Second)
 								continue
@@ -218,21 +226,6 @@ func (t *CkgTransmitter) processChange(ctx context.Context, changeDoc bson.M) er
 	return nil
 }
 
-// Helper function to check MongoDB connection health
-func (t *CkgTransmitter) checkMongoDBConnection(ctx context.Context) error {
-	if t.Database == nil {
-		return fmt.Errorf("MongoDB client is nil")
-	}
-
-	// Ping the database to verify connection
-	err := t.Database.Ping(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("MongoDB connection is not healthy: %v", err)
-	}
-
-	return nil
-}
-
 func (t *CkgTransmitter) Produce(ctx context.Context) error {
 	output, err := t.Prepare(ctx)
 	if err != nil {
@@ -265,9 +258,13 @@ func (t *CkgTransmitter) Produce(ctx context.Context) error {
 			}
 
 			attributes := t.Configurations.Producer.MessageAttributes
+			if attributes == nil {
+				attributes = map[string]string{}
+			}
 			attributes["environment"] = t.Configurations.App.Environment
 			attributes["timestamp"] = time.Now().Format(time.RFC3339)
 
+			slog.Debug("JSON: " + jsonStr)
 			// Kirim data via PubSub
 			msgID, err := t.PubSub.PublishMessage(ctx, []byte(jsonStr), attributes)
 			if err == nil {
@@ -276,7 +273,7 @@ func (t *CkgTransmitter) Produce(ctx context.Context) error {
 					ID:        msgID,
 					CreatedAt: time.Now().Format(time.RFC1123),
 				}
-				t.PubSubRepo.SaveNewOutgoing(outgoing)
+				t.PubSubRepo.SaveOutgoing(outgoing)
 			}
 
 			// tiap 10 langkah istirahat bentar, serius santai
@@ -291,22 +288,33 @@ func (t *CkgTransmitter) Produce(ctx context.Context) error {
 }
 
 func (t *CkgTransmitter) Prepare(ctx context.Context) ([]*models.SkriningCKGResult, error) {
+	start := ""
+	end := ""
+	limit := int64(0)
 	output := make([]*models.SkriningCKGResult, 0)
 
 	// Get last timestamp from outgoing table
-	lastTimestamp, err := t.PubSubRepo.GetLastOutgoingTimestamp()
-	if err != nil {
-		return output, fmt.Errorf("gagal mengambil timestamp terakhir dari outgoing: %v", err)
+	if start == "" || start == "last" {
+		start, _ = t.PubSubRepo.GetLastOutgoingTimestamp()
 	}
 
 	// If no last timestamp, use default start time
-	if lastTimestamp == "" {
-		defaultTime := time.Now().Add(-6 * time.Hour) // Default to 6 hours ago
-		lastTimestamp = defaultTime.Format(time.RFC1123)
+	now := time.Now()
+	if start == "" {
+		defaultTime := now.Add(-48 * time.Hour) // Default to 6 hours ago
+		start = defaultTime.Format(time.RFC3339)
+	}
+
+	if end == "" {
+		end = now.Format(time.RFC3339)
+	}
+
+	if limit == 0 {
+		limit = int64(t.Configurations.Producer.BatchSize)
 	}
 
 	// Get status pasien data from database
-	pending, err := t.CkgRepo.GetPendingTbSkrining(lastTimestamp)
+	pending, err := t.CkgRepo.GetPendingTbSkrining(start, end, limit)
 	if err == nil {
 		for _, skrining := range pending {
 			output = append(output, &skrining)

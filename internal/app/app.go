@@ -5,16 +5,15 @@ import (
 	"log/slog"
 	"pubsub-ckg-tb/internal/config"
 	database "pubsub-ckg-tb/internal/db"
+	"pubsub-ckg-tb/internal/db/connection"
 
 	pubsubInternal "pubsub-ckg-tb/internal/pubsub"
-
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type App struct {
 	Configurations *config.Configurations
 	Context        context.Context
-	Database       *mongo.Client
+	Database       connection.DatabaseConnection
 	PubSub         *pubsubInternal.Client
 }
 
@@ -30,16 +29,17 @@ func InitApp() (*App, error) {
 
 	slog.SetLogLoggerLevel(logLevel)
 
+	ctx := context.Background()
+
 	// Initialize database connection
-	dbConn := database.GetConnection(cfg.Database)
+	dbConn := database.GetConnection(&cfg.Database)
+	dbConn.Connect(ctx)
 
 	// Initialize PubSub client
-	ctx := context.Background()
 	pubsubClient, err := pubsubInternal.NewClient(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
-	defer pubsubClient.Close()
 
 	return &App{
 		Configurations: cfg,
@@ -65,13 +65,13 @@ func (a *App) RunPubSubConsumer(receiver pubsubInternal.Receiver) {
 	a.PubSub.StartConsumer(a.Context, receiver)
 }
 
-func (a *App) RunPubSubProducer(transmitter pubsubInternal.Transmitter) {
+func (a *App) RunPubSubProducer(transmitter pubsubInternal.Transmitter, watchMode bool) {
 	// Start procuce messages one time
-	a.PubSub.StartProducer(a.Context, transmitter)
+	a.PubSub.StartProducer(a.Context, transmitter, watchMode)
 }
 
 func (a *App) Close() {
 	slog.Info("Closing application resources...")
-	database.CloseConnection()
+	database.CloseConnection(a.Context)
 	a.PubSub.Close()
 }
