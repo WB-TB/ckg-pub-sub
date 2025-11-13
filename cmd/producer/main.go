@@ -21,10 +21,15 @@ func main() {
 	defer app.Close()
 
 	slog.Info("Application initialized successfully")
+	watchMode := false
+	if app.Database.GetName() == "MongoDB" {
+		watchMode = true
+	}
+
 	app.RunPubSubProducer(ckg.NewCkgTransmitter(
 		app.Context,
 		app.Configurations,
 		app.Database,
 		app.PubSub,
-	))
+	), watchMode)
 }
