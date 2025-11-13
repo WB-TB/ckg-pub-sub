@@ -56,6 +56,260 @@ type SkriningCKGRaw struct {
 	GejalaDanTandaTbc                  *string `bson:"gejala_dan_tanda_tbc"`
 
 	TindakLanjutPenegakanDiagnosa *string `bson:"tindak_lanjut_penegakan_diagnosa"`
+	UpdatedAt                     string  `bson:"updated_at"`
+}
+
+// FromMap creates a SkriningCKGRaw from a map
+func (s *SkriningCKGRaw) FromMap(data map[string]any) {
+	// Map fields
+	if val, ok := data["pasien_id"].(string); ok {
+		s.PasienCKGID = val
+	}
+	if val, ok := data["nik"].(string); ok {
+		s.PasienNIK = val
+	}
+	if val, ok := data["pasien_name"].(string); ok {
+		s.PasienNama = val
+	}
+	if val, ok := data["jenis_kelamin"].(string); ok {
+		s.PasienJenisKelamin = val
+	}
+	if val, ok := data["tgl_lahir"].(string); ok {
+		s.PasienTglLahir = val
+	}
+	if val, ok := data["usia"].(float64); ok {
+		s.PasienUsia = int(val)
+	}
+	if val, ok := data["pekerjaan"].(string); ok {
+		s.PasienPekerjaan = &val
+	}
+	if val, ok := data["provinsi_pasien"].(string); ok {
+		s.PasienProvinsi = &val
+	}
+	if val, ok := data["kabkota_pasien"].(string); ok {
+		s.PasienKabkota = &val
+	}
+	if val, ok := data["kecamatan_pasien"].(string); ok {
+		s.PasienKecamatan = &val
+	}
+	if val, ok := data["kelurahan_pasien"].(string); ok {
+		s.PasienKelurahan = &val
+	}
+	if val, ok := data["alamat"].(string); ok {
+		s.PasienAlamat = &val
+	}
+	if val, ok := data["no_handphone"].(string); ok {
+		s.PasienNoHandphone = val
+	}
+	if val, ok := data["kode_faskes"].(string); ok {
+		s.KodeFaskes = &val
+	}
+	if val, ok := data["nama_faskes"].(string); ok {
+		s.NamaFaskes = &val
+	}
+	if val, ok := data["provinsi_faskes"].(string); ok {
+		s.ProvinsiFaskes = &val
+	}
+	if val, ok := data["kabkota_faskes"].(string); ok {
+		s.KabkotaFaskes = &val
+	}
+	if val, ok := data["tgl_pemeriksaan"].(string); ok {
+		s.TglPemeriksaan = val
+	}
+	if val, ok := data["berat_badan"].(float64); ok {
+		s.BeratBadan = &val
+	}
+	if val, ok := data["tinggi_badan"].(float64); ok {
+		s.TinggiBadan = &val
+	}
+	if val, ok := data["imt"].(string); ok {
+		s.StatusImt = &val
+	}
+	if val, ok := data["kekurangan_gizi"].(string); ok {
+		s.KekuranganGizi = &val
+	}
+	if val, ok := data["merokok"].(string); ok {
+		s.Merokok = &val
+	}
+	if val, ok := data["perokok_pasif"].(string); ok {
+		s.PerokokPasif = &val
+	}
+	if val, ok := data["lansia_lebih_dari_65"].(string); ok {
+		s.LansiaDiatas65 = &val
+	}
+	if val, ok := data["ibu_hamil"].(string); ok {
+		s.IbuHamil = &val
+	}
+	if val, ok := data["hasil_gds"].(float64); ok {
+		s.HasilGds = &val
+	}
+	if val, ok := data["hasil_gdp"].(float64); ok {
+		s.HasilGdp = &val
+	}
+	if val, ok := data["hasil_gdpp"].(float64); ok {
+		s.HasilGdpp = &val
+	}
+	if val, ok := data["pemeriksaan_chest_xray"].(string); ok {
+		s.PemeriksaanChestXray = &val
+	}
+	if val, ok := data["hasil_pemeriksaan_tb_bta"].(string); ok {
+		s.HasilPemeriksaanTbBta = &val
+	}
+	if val, ok := data["hasil_pemeriksaan_tb_tcm"].(string); ok {
+		s.HasilPemeriksaanTbTcm = &val
+	}
+	if val, ok := data["hasil_pemeriksaan_dm"].(string); ok {
+		s.HasilPemeriksaanDm = &val
+	}
+	if val, ok := data["hasil_pemeriksaan_ht"].(string); ok {
+		s.HasilPemeriksaanHt = &val
+	}
+	if val, ok := data["hasil_pemeriksaan_tb_poct"].(string); ok {
+		s.HasilPemeriksaanPoct = &val
+	}
+	if val, ok := data["hasil_pemeriksaan_tb_radiologi"].(string); ok {
+		s.HasilPemeriksaanRadiologi = &val
+	}
+	if val, ok := data["inveksi_hiv_aids"].(string); ok {
+		s.InfeksiHivAids = &val
+	}
+	if val, ok := data["gejala_dan_tanda_batuk"].(string); ok {
+		s.GejalaDanTandaBatuk = &val
+	}
+	if val, ok := data["gejala_dan_tanda_bb_turun"].(string); ok {
+		s.GejalaDanTandaBbTurun = &val
+	}
+	if val, ok := data["gejala_dan_tanda_demam_hilang_timbul"].(string); ok {
+		s.GejalaDanTandaDemamHilangTimbul = &val
+	}
+	if val, ok := data["gejala_dan_tanda_lesu_malaise"].(string); ok {
+		s.GejalaDanTandaLesuMalaise = &val
+	}
+	if val, ok := data["gejala_dan_tanda_berkeringat_malam"].(string); ok {
+		s.GejalaDanTandaBerkeringatMalam = &val
+	}
+	if val, ok := data["gejala_dan_tanda_pembesaran_getah_bening"].(string); ok {
+		s.GejalaDanTandaPembesaranKelenjarGB = &val
+	}
+	if val, ok := data["kontak_pasien_tbc"].(string); ok {
+		s.KontakPasienTbc = &val
+	}
+	if val, ok := data["gejala_dan_tanda_tbc"].(string); ok {
+		s.GejalaDanTandaTbc = &val
+	}
+	if val, ok := data["tindak_lanjut_penegakan_diagnosa"].(string); ok {
+		s.TindakLanjutPenegakanDiagnosa = &val
+	}
+	if val, ok := data["updated_at"].(string); ok {
+		s.UpdatedAt = val
+	}
+}
+
+// ToMap converts SkriningCKGRaw to a map
+func (s *SkriningCKGRaw) ToMap() map[string]any {
+	return map[string]any{
+		"pasien_id":                            s.PasienCKGID,
+		"nik":                                  s.PasienNIK,
+		"pasien_name":                          s.PasienNama,
+		"jenis_kelamin":                        s.PasienJenisKelamin,
+		"tgl_lahir":                            s.PasienTglLahir,
+		"usia":                                 s.PasienUsia,
+		"pekerjaan":                            s.PasienPekerjaan,
+		"provinsi_pasien":                      s.PasienProvinsi,
+		"kabkota_pasien":                       s.PasienKabkota,
+		"kecamatan_pasien":                     s.PasienKecamatan,
+		"kelurahan_pasien":                     s.PasienKelurahan,
+		"alamat":                               s.PasienAlamat,
+		"no_handphone":                         s.PasienNoHandphone,
+		"kode_faskes":                          s.KodeFaskes,
+		"nama_faskes":                          s.NamaFaskes,
+		"provinsi_faskes":                      s.ProvinsiFaskes,
+		"kabkota_faskes":                       s.KabkotaFaskes,
+		"tgl_pemeriksaan":                      s.TglPemeriksaan,
+		"berat_badan":                          s.BeratBadan,
+		"tinggi_badan":                         s.TinggiBadan,
+		"imt":                                  s.StatusImt,
+		"kekurangan_gizi":                      s.KekuranganGizi,
+		"merokok":                              s.Merokok,
+		"perokok_pasif":                        s.PerokokPasif,
+		"lansia_lebih_dari_65":                 s.LansiaDiatas65,
+		"ibu_hamil":                            s.IbuHamil,
+		"hasil_gds":                            s.HasilGds,
+		"hasil_gdp":                            s.HasilGdp,
+		"hasil_gdpp":                           s.HasilGdpp,
+		"pemeriksaan_chest_xray":               s.PemeriksaanChestXray,
+		"hasil_pemeriksaan_tb_bta":             s.HasilPemeriksaanTbBta,
+		"hasil_pemeriksaan_tb_tcm":             s.HasilPemeriksaanTbTcm,
+		"hasil_pemeriksaan_dm":                 s.HasilPemeriksaanDm,
+		"hasil_pemeriksaan_ht":                 s.HasilPemeriksaanHt,
+		"hasil_pemeriksaan_tb_poct":            s.HasilPemeriksaanPoct,
+		"hasil_pemeriksaan_tb_radiologi":       s.HasilPemeriksaanRadiologi,
+		"inveksi_hiv_aids":                     s.InfeksiHivAids,
+		"gejala_dan_tanda_batuk":               s.GejalaDanTandaBatuk,
+		"gejala_dan_tanda_bb_turun":            s.GejalaDanTandaBbTurun,
+		"gejala_dan_tanda_demam_hilang_timbul": s.GejalaDanTandaDemamHilangTimbul,
+		"gejala_dan_tanda_lesu_malaise":        s.GejalaDanTandaLesuMalaise,
+		"gejala_dan_tanda_berkeringat_malam":   s.GejalaDanTandaBerkeringatMalam,
+		"gejala_dan_tanda_pembesaran_getah_bening": s.GejalaDanTandaPembesaranKelenjarGB,
+		"kontak_pasien_tbc":                        s.KontakPasienTbc,
+		"gejala_dan_tanda_tbc":                     s.GejalaDanTandaTbc,
+		"tindak_lanjut_penegakan_diagnosa":         s.TindakLanjutPenegakanDiagnosa,
+		"updated_at":                               s.UpdatedAt,
+	}
+}
+
+// ToSkriningCKGResult converts SkriningCKGRaw to SkriningCKGResult
+func (s *SkriningCKGRaw) ToSkriningCKGResult() SkriningCKGResult {
+	result := SkriningCKGResult{
+		// Identitas Pasien
+		PasienCKGID:        s.PasienCKGID,
+		PasienNIK:          s.PasienNIK,
+		PasienNama:         s.PasienNama,
+		PasienJenisKelamin: s.PasienJenisKelamin,
+		PasienTglLahir:     s.PasienTglLahir,
+		PasienUsia:         s.PasienUsia,
+		PasienPekerjaan:    s.PasienPekerjaan,
+		PasienAlamat:       s.PasienAlamat,
+		PasienNoHandphone:  s.PasienNoHandphone,
+
+		// Data Kunjungan
+		TglPemeriksaan: s.TglPemeriksaan,
+
+		// Data Hasil Pemeriksaan
+		BeratBadan:  s.BeratBadan,
+		TinggiBadan: s.TinggiBadan,
+		StatusImt:   s.StatusImt,
+		HasilGds:    s.HasilGds,
+		HasilGdp:    s.HasilGdp,
+		HasilGdpp:   s.HasilGdpp,
+
+		// Data Faktor Risiko
+		KekuranganGizi: s.KekuranganGizi,
+		Merokok:        s.Merokok,
+		PerokokPasif:   s.PerokokPasif,
+		LansiaDiatas65: s.LansiaDiatas65,
+		IbuHamil:       s.IbuHamil,
+		InfeksiHivAids: s.InfeksiHivAids,
+		RiwayatDm:      s.HasilPemeriksaanDm,
+		RiwayatHt:      s.HasilPemeriksaanHt,
+
+		// Skrining gejala dan tanda
+		GejalaBatuk:                s.GejalaDanTandaBatuk,
+		GejalaBbTurun:              s.GejalaDanTandaBbTurun,
+		GejalaDemamHilangTimbul:    s.GejalaDanTandaDemamHilangTimbul,
+		GejalaLesuMalaise:          s.GejalaDanTandaLesuMalaise,
+		GejalaBerkeringatMalam:     s.GejalaDanTandaBerkeringatMalam,
+		GejalaPembesaranKelenjarGB: s.GejalaDanTandaPembesaranKelenjarGB,
+		KontakPasienTbc:            s.KontakPasienTbc,
+
+		// Pemeriksaan Lab TB
+		HasilPemeriksaanTbBta:     s.HasilPemeriksaanTbBta,
+		HasilPemeriksaanTbTcm:     s.HasilPemeriksaanTbTcm,
+		HasilPemeriksaanPoct:      s.HasilPemeriksaanPoct,
+		HasilPemeriksaanRadiologi: s.HasilPemeriksaanRadiologi,
+	}
+
+	return result
 }
 
 // Hasil Data Skrining yang dikirim ke client
@@ -129,7 +383,7 @@ type SkriningCKGOutput struct {
 }
 
 // FromMap creates a SkriningCKGResult from a map
-func (s *SkriningCKGResult) FromMap(data map[string]interface{}) {
+func (s *SkriningCKGResult) FromMap(data map[string]any) {
 	// Map fields
 	if val, ok := data["pasien_ckg_id"].(string); ok {
 		s.PasienCKGID = val
@@ -274,8 +528,8 @@ func (s *SkriningCKGResult) FromMap(data map[string]interface{}) {
 	}
 }
 
-func (s *SkriningCKGResult) ToMap() map[string]interface{} {
-	return map[string]interface{}{
+func (s *SkriningCKGResult) ToMap() map[string]any {
+	return map[string]any{
 		"pasien_ckg_id":                  s.PasienCKGID,
 		"pasien_nik":                     s.PasienNIK,
 		"pasien_nama":                    s.PasienNama,
