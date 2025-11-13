@@ -13,7 +13,7 @@ type Transmitter interface {
 	Produce(ctx context.Context) error
 }
 
-func (c *Client) StartProducer(ctx context.Context, transmitter Transmitter) {
+func (c *Client) StartProducer(ctx context.Context, transmitter Transmitter, watchMode bool) {
 	c.Transmitter = transmitter
 
 	// Create a context that can be cancelled
@@ -28,7 +28,11 @@ func (c *Client) StartProducer(ctx context.Context, transmitter Transmitter) {
 		// Start the transmitter in a goroutine
 		go func() {
 			slog.Info("Starting message producer...")
-			c.Transmitter.Watch(producerCtx)
+			if watchMode {
+				c.Transmitter.Watch(producerCtx)
+			} else {
+				c.Transmitter.Produce(producerCtx)
+			}
 		}()
 
 		// Wait for shutdown signal
