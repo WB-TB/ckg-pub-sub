@@ -11,5 +11,5 @@ type OutgoingMessageSkriningTB struct {
 	ID        string `json:"id" bson:"id"`
 	CreatedAt string `json:"created_at" bson:"created_at"`
 	UpdatedAt string `json:"updated_at" bson:"updated_at"`
-	CkgID     string `json:"ckg_id" bson:"ckg_id"`
+	// CkgID     string `json:"ckg_id" bson:"ckg_id"`
 }

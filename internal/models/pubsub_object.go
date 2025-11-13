@@ -19,8 +19,8 @@ type PubSubObjectWrapper[T PubSubObject] struct {
 }
 
 type PubSubObject interface {
-	FromMap(data map[string]interface{})
-	ToMap() map[string]interface{}
+	FromMap(data map[string]any)
+	ToMap() map[string]any
 }
 
 func NewPubSubConsumerWrapper[T PubSubObject]() PubSubObjectWrapper[T] {
@@ -37,7 +37,7 @@ func NewPubSubProducerWrapper[T PubSubObject](data []T) PubSubObjectWrapper[T] {
 }
 
 // FromMap creates a PubSubObject from a map
-func (t *PubSubObjectWrapper[T]) FromMap(obj map[string]interface{}) *PubSubObjectWrapper[T] {
+func (t *PubSubObjectWrapper[T]) FromMap(obj map[string]any) *PubSubObjectWrapper[T] {
 	cfg := config.GetConfig()
 
 	markerValueObj, ok := obj[cfg.CKG.MarkerField].(string)
@@ -58,10 +58,10 @@ func (t *PubSubObjectWrapper[T]) FromMap(obj map[string]interface{}) *PubSubObje
 		t.CKGObject = true
 		t.Data = make([]T, 0)
 
-		if data, ok := obj["data"].([]interface{}); ok {
+		if data, ok := obj["data"].([]any); ok {
 			for _, item := range data {
 				var x T
-				if dataMap, ok := item.(map[string]interface{}); ok {
+				if dataMap, ok := item.(map[string]any); ok {
 					x.FromMap(dataMap)
 					t.Data = append(t.Data, x)
 				}
@@ -73,7 +73,7 @@ func (t *PubSubObjectWrapper[T]) FromMap(obj map[string]interface{}) *PubSubObje
 }
 
 func (t *PubSubObjectWrapper[T]) FromJSON(jsonStr string) error {
-	data := make(map[string]interface{})
+	data := make(map[string]any)
 
 	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
 		return fmt.Errorf("invalid JSON: %v", err)
@@ -83,10 +83,10 @@ func (t *PubSubObjectWrapper[T]) FromJSON(jsonStr string) error {
 	return nil
 }
 
-func (t *PubSubObjectWrapper[T]) ToMap() map[string]interface{} {
-	data := make(map[string]interface{})
+func (t *PubSubObjectWrapper[T]) ToMap() map[string]any {
+	data := make(map[string]any)
 
-	items := make([]interface{}, 0)
+	items := make([]any, 0)
 	for _, item := range t.Data {
 		items = append(items, item.ToMap())
 	}

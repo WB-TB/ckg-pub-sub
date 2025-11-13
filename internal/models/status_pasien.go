@@ -36,7 +36,7 @@ func NewStatusPasien() *StatusPasien {
 }
 
 // FromMap creates a StatusPasien from a map
-func (s *StatusPasien) FromMap(data map[string]interface{}) {
+func (s *StatusPasien) FromMap(data map[string]any) {
 	// Map fields
 	if val, ok := data["terduga_id"].(string); ok {
 		s.TerdugaID = &val
@@ -71,8 +71,8 @@ func (s *StatusPasien) FromMap(data map[string]interface{}) {
 	}
 }
 
-func (s *StatusPasien) ToMap() map[string]interface{} {
-	result := map[string]interface{}{
+func (s *StatusPasien) ToMap() map[string]any {
+	result := map[string]any{
 		"pasien_ckg_id":              s.PasienCkgID,
 		"terduga_id":                 s.TerdugaID,
 		"pasien_nik":                 s.PasienNIK,
